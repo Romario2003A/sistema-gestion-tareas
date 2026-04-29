@@ -1,25 +1,28 @@
 from peewee import *
+from datetime import datetime
 
-# 1. Configuramos la conexión a la base de datos
+# 1. Configuración de la base de datos
 db = MySQLDatabase(
     'gestion_tareas',   
     user='root',        
-    password='root',        # <- Revisa tu contraseña aquí
+    password='root',        # <-- PON TU CONTRASEÑA AQUÍ
     host='localhost',
     port=3306
 )
 
-# 2. Definimos el Modelo (La tabla)
+# 2. Modelo Avanzado (Nuevas columnas de Prioridad y Fecha)
 class Tarea(Model):
     titulo = CharField(max_length=150)
     descripcion = TextField()
     estado = CharField(default='Pendiente')
+    prioridad = CharField(default='Media')
+    fecha_limite = DateField(null=True)
 
     class Meta:
         database = db
         table_name = 'tareas'
 
-# 3. Función para inicializar
+# 3. Inicialización
 def inicializar_db():
     db.connect()
     db.create_tables([Tarea], safe=True)

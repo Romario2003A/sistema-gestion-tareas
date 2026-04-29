@@ -3,48 +3,58 @@ from models import Tarea, inicializar_db
 
 app = Flask(__name__)
 
-# 1. Crear la tabla en MySQL automáticamente antes de arrancar
 with app.app_context():
     inicializar_db()
 
-# --- RUTAS DEL CRUD ---
+# --- RUTAS DEL SISTEMA ---
 
-# READ: Mostrar todas las tareas
 @app.route('/')
 def index():
-    todas_las_tareas = Tarea.select().order_by(Tarea.id.desc())
-    return render_template('index.html', tareas=todas_las_tareas)
+    # Capturar parámetros de búsqueda y filtro
+    busqueda = request.args.get('buscar', '')
+    filtro_estado = request.args.get('estado', 'Todos')
 
-# CREATE: Añadir una nueva tarea
+    # Consulta base
+    query = Tarea.select()
+
+    # Aplicar búsqueda dinámica (Módulo de Búsqueda)
+    if busqueda:
+        query = query.where(Tarea.titulo.contains(busqueda) | Tarea.descripcion.contains(busqueda))
+
+    # Aplicar filtro de estado (Módulo de Filtros)
+    if filtro_estado != 'Todos':
+        query = query.where(Tarea.estado == filtro_estado)
+
+    todas_las_tareas = query.order_by(Tarea.id.desc())
+    
+    return render_template('index.html', tareas=todas_las_tareas, busqueda=busqueda, filtro_estado=filtro_estado)
+
 @app.route('/crear', methods=['POST'])
 def crear():
-    titulo = request.form['titulo']
-    descripcion = request.form['descripcion']
-    
-    # Aquí el ORM Peewee hace la magia del INSERT INTO
-    Tarea.create(titulo=titulo, descripcion=descripcion)
+    # Recibir todos los datos del nuevo formulario
+    Tarea.create(
+        titulo=request.form['titulo'],
+        descripcion=request.form['descripcion'],
+        prioridad=request.form.get('prioridad', 'Media'),
+        fecha_limite=request.form.get('fecha_limite') or None
+    )
     return redirect(url_for('index'))
 
-# UPDATE: Cambiar el estado de la tarea
 @app.route('/actualizar/<int:id>', methods=['POST'])
 def actualizar(id):
     tarea = Tarea.get_by_id(id)
-    # Alternar entre Pendiente y Completada
     if tarea.estado == 'Pendiente':
         tarea.estado = 'Completada'
     else:
         tarea.estado = 'Pendiente'
-        
-    tarea.save() # Peewee hace el UPDATE
+    tarea.save()
     return redirect(url_for('index'))
 
-# DELETE: Borrar una tarea
 @app.route('/eliminar/<int:id>', methods=['POST'])
 def eliminar(id):
     tarea = Tarea.get_by_id(id)
-    tarea.delete_instance() # Peewee hace el DELETE
+    tarea.delete_instance()
     return redirect(url_for('index'))
 
-# Arrancar el servidor
 if __name__ == '__main__':
     app.run(debug=True)
